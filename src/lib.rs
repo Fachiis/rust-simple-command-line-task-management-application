@@ -72,8 +72,9 @@ pub fn handle_add_command(todo: &mut TodoList, args: &[&str]) {
     let description = args[1..args.len() - 1].join(" ");
     let status = parse_status(args.last().unwrap());
 
-    if description.is_empty() {
-        println!("Error: Description cannot be empty.");
+    let trimmed_desc = description.trim();
+    if trimmed_desc.is_empty() || trimmed_desc == "\"\"" || trimmed_desc == "''" {
+        println!("Error: Description cannot be empty or whitespace.");
         return;
     }
 
