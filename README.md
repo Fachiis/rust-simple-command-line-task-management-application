@@ -56,7 +56,6 @@ Once you start the application, you'll be presented with a prompt (`>`). Here ar
 - `list` or `ls` - List all tasks with their indices and statuses
 
 - `help` - Display help information
-
 - `quit` or `q` - Exit the application
 
 ### Example Session
@@ -64,7 +63,6 @@ Once you start the application, you'll be presented with a prompt (`>`). Here ar
 ```
 > add Buy groceries pending
 Added: Buy groceries (Pending)
-
 > add Complete project report pending
 Added: Complete project report (Pending)
 
@@ -80,6 +78,33 @@ Removed: Task { description: "Buy groceries", status: Pending }
 
 > quit
 Goodbye!
+```
+
+## Testing
+
+This project includes comprehensive unit tests for the core functionality. The tests ensure that:
+
+- A new todo list starts empty
+- Tasks are added with correct descriptions and statuses
+- Tasks can be removed by valid index
+- Removing a task with an invalid index does not modify the list and returns `None`
+
+To run the tests, use:
+
+```
+cargo test
+```
+
+Example test output:
+
+```
+running 4 tests
+test tests::test_todo_list_new ... ok
+test tests::test_todo_add_task ... ok
+test tests::test_remove_task_valid ... ok
+test tests::test_remove_task_invalid ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 ```
 
 ## Project Structure

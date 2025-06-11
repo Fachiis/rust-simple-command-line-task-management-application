@@ -24,7 +24,7 @@ fn main() {
                 }
 
                 match args[0].to_lowercase().as_str() {
-                    "quite" | "q" => {
+                    "quit" | "q" => {
                         println!("Goodbye!");
                         break;
                     }

@@ -1,4 +1,4 @@
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 enum Status {
     Pending,
     Done,
@@ -108,5 +108,49 @@ pub fn handle_remove_command(todo: &mut TodoList, args: &[&str]) {
         }
     } else {
         println!("Invalid value {}. Must be a number", args[1]);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_todo_list_new() {
+        let todo = TodoList::new();
+        assert_eq!(todo.tasks.len(), 0, "New TodoList should be empty")
+    }
+
+    #[test]
+    fn test_todo_add_task() {
+        let mut todo = TodoList::new();
+        todo.add_task(String::from("Buy milk"), Status::Pending);
+        assert_eq!(todo.tasks.len(), 1, "Should have one task");
+        assert_eq!(
+            todo.tasks[0].description, "Buy milk",
+            "Description should match"
+        );
+        assert_eq!(
+            todo.tasks[0].status,
+            Status::Pending,
+            "Status should be pending"
+        )
+    }
+
+    #[test]
+    fn test_remove_task_valid() {
+        let mut todo = TodoList::new();
+        todo.add_task(String::from("Buy fish"), Status::Done);
+        todo.remove_task(0);
+        assert_eq!(todo.tasks.len(), 0, "TodoList should be empty")
+    }
+
+    #[test]
+    fn test_remove_task_invalid() {
+        let mut todo = TodoList::new();
+        todo.add_task(String::from("Buy fish"), Status::Done);
+        let removed = todo.remove_task(1);
+        assert!(removed.is_none(), "Should return None for invalid index"); // Assert here
+        assert_eq!(todo.tasks.len(), 1, "TodoList should still have one task")
     }
 }
