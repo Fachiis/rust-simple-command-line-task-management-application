@@ -153,4 +153,84 @@ mod tests {
         assert!(removed.is_none(), "Should return None for invalid index"); // Assert here
         assert_eq!(todo.tasks.len(), 1, "TodoList should still have one task")
     }
+
+    #[test]
+    fn test_handle_add_command_valid() {
+        let mut todo = TodoList::new();
+        let args = vec!["add", "buy milk", "pending"];
+        handle_add_command(&mut todo, &args);
+        assert_eq!(todo.tasks.len(), 1, "Should add one task");
+        assert!(
+            matches!(todo.tasks[0].status, Status::Pending),
+            "Status should be pending"
+        ); // Match pattern
+    }
+
+    #[test]
+    fn test_add_command_empty_description() {
+        let mut todo = TodoList::new();
+        let args = vec!["add", "", "done"];
+        handle_add_command(&mut todo, &args);
+        assert_eq!(
+            todo.tasks.len(),
+            0,
+            "Should not add task with empty description"
+        );
+    }
+
+    #[test]
+    fn test_add_command_too_long_description() {
+        let mut todo = TodoList::new();
+        let long_desc = "a".repeat(101);
+        let args = vec!["add", &long_desc, "pending"];
+        handle_add_command(&mut todo, &args);
+        assert_eq!(
+            todo.tasks.len(),
+            0,
+            "Should not add task with too long description"
+        );
+    }
+
+    #[test]
+    fn test_handle_add_command_invalid_status() {
+        let mut todo = TodoList::new();
+        let args = vec!["add", "Buy milk", "invalid"];
+        handle_add_command(&mut todo, &args);
+        assert_eq!(
+            todo.tasks.len(),
+            0,
+            "Should not add task with invalid status"
+        );
+    }
+
+    #[test]
+    fn test_handle_remove_command_valid() {
+        let mut todo = TodoList::new();
+        todo.add_task(String::from("Buy milk"), Status::Pending);
+        let args = vec!["remove", "0"];
+        handle_remove_command(&mut todo, &args);
+        assert_eq!(todo.tasks.len(), 0, "Should remove task");
+    }
+
+    #[test]
+    fn test_handle_remove_command_invalid_index() {
+        let mut todo = TodoList::new();
+        todo.add_task(String::from("Buy milk"), Status::Pending);
+        let args = vec!["remove", "1"];
+        handle_remove_command(&mut todo, &args);
+        assert_eq!(
+            todo.tasks.len(),
+            1,
+            "Should not remove task for invalid index"
+        );
+    }
+
+    #[test]
+    fn test_parse_status() {
+        assert!(matches!(parse_status("pending"), Some(Status::Pending)));
+        assert!(matches!(parse_status("Pending"), Some(Status::Pending)));
+        assert!(matches!(parse_status("done"), Some(Status::Done)));
+        assert!(matches!(parse_status("Done"), Some(Status::Done)));
+        assert!(parse_status("invalid").is_none());
+    }
 }
