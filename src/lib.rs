@@ -1,13 +1,34 @@
-#[derive(Debug, Clone, PartialEq)]
+use serde::{Deserialize, Serialize};
+use thiserror;
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 enum Status {
     Pending,
     Done,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct Task {
     description: String,
     status: Status,
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("I/O error: {0}")]
+    IoError(#[from] std::io::Error),
+    #[error("JSON error: {0}")]
+    JsonError(#[from] serde_json::Error),
+    #[error("Task not found at index: {0}")]
+    TaskNotFound(usize),
+    #[error("Invalid status: {0}")]
+    InvalidStatus(String),
+    #[error("Invalid description: {0}")]
+    InvalidDescription(String),
+    #[error("Invalid index: {0}")]
+    InvalidIndex(String),
+    #[error("Not enough arguments: {0}")]
+    NotEnoughArgs(String),
 }
 
 pub struct TodoList {
@@ -19,18 +40,22 @@ impl TodoList {
         TodoList { tasks: Vec::new() }
     }
 
-    fn add_task(&mut self, description: String, status: Status) {
+    fn add_task(&mut self, description: String, status: Status) -> Result<(), Error> {
         self.tasks.push(Task {
             description,
             status,
         });
+        self.save_to_file("tasks.json")?;
+        Ok(())
     }
 
-    fn remove_task(&mut self, index: usize) -> Option<Task> {
+    fn remove_task(&mut self, index: usize) -> Result<Task, Error> {
         if index < self.tasks.len() {
-            Some(self.tasks.remove(index))
+            let task = self.tasks.remove(index);
+            self.save_to_file("tasks.json")?;
+            Ok(task)
         } else {
-            None
+            Err(Error::TaskNotFound(index))
         }
     }
 
@@ -44,6 +69,22 @@ impl TodoList {
             }
         }
     }
+
+    pub fn load_from_file(path: &str) -> Result<Self, Error> {
+        match std::fs::File::open(path) {
+            Ok(file) => Ok(TodoList {
+                tasks: serde_json::from_reader(file)?,
+            }),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(TodoList::new()),
+            Err(e) => Err(Error::IoError(e)),
+        }
+    }
+
+    pub fn save_to_file(&self, path: &str) -> Result<(), Error> {
+        let file = std::fs::File::create(path)?;
+        serde_json::to_writer(file, &self.tasks)?;
+        Ok(())
+    }
 }
 
 fn parse_status(s: &str) -> Option<Status> {
@@ -54,19 +95,11 @@ fn parse_status(s: &str) -> Option<Status> {
     }
 }
 
-pub fn print_help_doc() {
-    println!("Commands:");
-    println!("  add <description> <status> - Add a task (status: pending, done)");
-    println!("  remove <index> - Remove a task by index");
-    println!("  list - List all tasks");
-    println!("  quit or q - Exit the program");
-    println!("Example: add \"Buy milk and eggs\" pending\n");
-}
-
-pub fn handle_add_command(todo: &mut TodoList, args: &[&str]) {
+pub fn handle_add_command(todo: &mut TodoList, args: &[&str]) -> Result<(), Error> {
     if args.len() < 3 {
-        println!("Usage: add <description> <status>");
-        return;
+        return Err(Error::NotEnoughArgs(
+            "Usage: add <description> <status>".parse().unwrap(),
+        ));
     }
 
     let description = args[1..args.len() - 1].join(" ");
@@ -74,41 +107,58 @@ pub fn handle_add_command(todo: &mut TodoList, args: &[&str]) {
 
     let trimmed_desc = description.trim();
     if trimmed_desc.is_empty() || trimmed_desc == "\"\"" || trimmed_desc == "''" {
-        println!("Error: Description cannot be empty or whitespace.");
-        return;
+        return Err(Error::InvalidDescription(
+            "Description cannot be empty or whitespace."
+                .parse()
+                .unwrap(),
+        ));
     }
 
-    if description.len() > 100 {
-        println!("Error: Description too long (max 100 characters).");
-        return;
+    if description.len() > 20 {
+        return Err(Error::InvalidDescription(
+            "Description too long (max 20 characters)".parse().unwrap(),
+        ));
     }
 
     if let Some(status) = status {
         todo.add_task(description.clone(), status.clone());
         println!("Added: {} ({:?})", description, status);
+        Ok(())
     } else {
-        println!(
-            "Invalid status: {}. Use 'pending' or 'done'",
-            args.last().unwrap()
-        );
+        Err(Error::InvalidStatus(
+            "Use 'pending' or 'done'".parse().unwrap(),
+        ))
     }
 }
 
-pub fn handle_remove_command(todo: &mut TodoList, args: &[&str]) {
+pub fn handle_remove_command(todo: &mut TodoList, args: &[&str]) -> Result<(), Error> {
     if args.len() != 2 {
-        println!("Usage: remove <index>");
-        return;
+        return Err(Error::NotEnoughArgs(
+            "Usage: remove <index>".parse().unwrap(),
+        ));
     }
 
     if let Ok(index) = args[1].parse::<usize>() {
-        if let Some(removed_task) = todo.remove_task(index) {
-            println!("Removed: {:?}", removed_task);
-        } else {
-            println!("Invalid index: {}", index);
+        match todo.remove_task(index) {
+            Ok(task) => { 
+                println!("Removed: {:?}", task); 
+                Ok(()) 
+            },
+            Err(e) => Err(Error::InvalidStatus("Invalid value. Must be a number".to_string()))
         }
-    } else {
-        println!("Invalid value {}. Must be a number", args[1]);
+    } else { 
+        Err(Error::InvalidIndex("Invalid index".to_string()))
     }
+}
+
+pub fn print_help_doc() {
+    println!("Commands:");
+    println!("  add <description> <status> - Add a task (status: pending, done)");
+    println!("  remove <index>  or rm <index> - Remove a task by index");
+    println!("  list or ls - List all tasks");
+    println!("  quit or q - Exit the program");
+    println!("  help - Print this help menu");
+    println!("Example: add \"Buy milk and eggs\" pending\n");
 }
 
 #[cfg(test)]
@@ -150,7 +200,7 @@ mod tests {
         let mut todo = TodoList::new();
         todo.add_task(String::from("Buy fish"), Status::Done);
         let removed = todo.remove_task(1);
-        assert!(removed.is_none(), "Should return None for invalid index"); // Assert here
+        assert!(removed.is_err(), "Should return None for invalid index"); // Assert here
         assert_eq!(todo.tasks.len(), 1, "TodoList should still have one task")
     }
 

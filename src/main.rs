@@ -6,7 +6,8 @@ fn main() {
     println!("\nWelcome to the TODO CLI project\n");
     print_help_doc();
 
-    let mut todo = TodoList::new();
+    let mut todo = TodoList::load_from_file("tasks.json")
+        .unwrap_or_else(|e1| panic!("Fail to load tasks: {}", e1));
 
     loop {
         print!("> ");
@@ -29,8 +30,16 @@ fn main() {
                         break;
                     }
                     "help" => print_help_doc(),
-                    "add" => handle_add_command(&mut todo, &args),
-                    "remove" | "rm" => handle_remove_command(&mut todo, &args),
+                    "add" => {
+                        if let Err(e) = handle_add_command(&mut todo, &args) {
+                            eprintln!("{}", e);
+                        }
+                    },
+                    "remove" | "rm" => {
+                        if let Err(e) =  handle_remove_command(&mut todo, &args) {
+                            eprintln!("{}", e)
+                        }
+                    },
                     "list" | "ls" => todo.list_tasks(),
                     _ => {
                         println!("Unknown command: {}. Type 'help' for commands.", args[0]);
